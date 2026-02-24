@@ -2,7 +2,6 @@
 
 import AppShell from "@/components/layout/AppShell";
 import Card from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
 import { UserProfile } from "@clerk/nextjs";
 
 export default function ProfilePage() {
@@ -11,6 +10,8 @@ export default function ProfilePage() {
       <div className="max-w-3xl mx-auto animate-fade-in">
         <Card className="p-2">
           <UserProfile
+            routing="path"
+            path="/profile"
             appearance={{
               elements: {
                 rootBox: "w-full",
