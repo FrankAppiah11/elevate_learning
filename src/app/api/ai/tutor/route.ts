@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import OpenAI from "openai";
 import { getTutorById } from "@/lib/ai-tutors";
 import { getServiceClient } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/ensure-profile";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -17,13 +18,7 @@ export async function POST(req: NextRequest) {
   if (!tutor) return NextResponse.json({ error: "Invalid tutor" }, { status: 400 });
 
   const supabase = getServiceClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("clerk_id", userId)
-    .single();
-
+  const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   const systemMessage = `${tutor.system_prompt}

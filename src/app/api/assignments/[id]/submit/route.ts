@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/ensure-profile";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
@@ -11,12 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { interactions, duration_seconds, tutor_id } = body;
   const supabase = getServiceClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("clerk_id", userId)
-    .single();
-
+  const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   const { data: assignment } = await supabase

@@ -2,21 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getServiceClient } from "@/lib/supabase";
 import { generateFolderLabel } from "@/lib/utils";
+import { ensureProfile } from "@/lib/ensure-profile";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = getServiceClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("clerk_id", userId)
-    .single();
-
+  const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
+  const supabase = getServiceClient();
   let query = supabase.from("assignments").select("*").order("created_at", { ascending: false });
 
   if (profile.role === "student") {
@@ -35,16 +30,10 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const supabase = getServiceClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("clerk_id", userId)
-    .single();
-
+  const profile = await ensureProfile(userId);
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
+  const supabase = getServiceClient();
   const body = await req.json();
   const folderLabel = generateFolderLabel(body.title, new Date());
 
