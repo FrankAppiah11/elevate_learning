@@ -18,6 +18,8 @@ import {
   ChevronRight,
   RotateCcw,
   BookOpen,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { AI_TUTORS } from "@/lib/ai-tutors";
 import { toast } from "sonner";
@@ -57,6 +59,7 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
   const [duration, setDuration] = useState(0);
   const [saving, setSaving] = useState(false);
   const [showAssignment, setShowAssignment] = useState(true);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -507,13 +510,84 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
                 <Save className="w-4 h-4" />
                 Save Draft
               </Button>
-              <Button size="sm" onClick={handleSubmit} loading={saving}>
+              <button
+                onClick={() => setShowSubmitConfirm(true)}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/25 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <AlertTriangle className="w-4 h-4" />
                 Submit Work
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Submit Confirmation Modal */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowSubmitConfirm(false)}
+          />
+          <div className="relative bg-slate-800 border border-amber-500/30 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowSubmitConfirm(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-full bg-amber-600/20 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-7 h-7 text-amber-400" />
+              </div>
+
+              <h3 className="text-xl font-bold text-white mb-2">
+                Ready to Submit?
+              </h3>
+
+              <p className="text-sm text-slate-400 mb-2">
+                Once you submit, your work and all AI interactions will be sent
+                to your instructor for review.
+              </p>
+
+              <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-3 mb-6 w-full">
+                <p className="text-xs text-amber-300 font-medium">
+                  This action cannot be undone. Make sure you have reviewed your
+                  work and are satisfied with your answers before proceeding.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-slate-500 mb-6">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Session duration: {formatDuration(duration)}</span>
+                <span className="text-slate-600">|</span>
+                <span>{messages.filter((m) => m.role === "student").length} messages sent</span>
+              </div>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowSubmitConfirm(false)}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSubmitConfirm(false);
+                    handleSubmit();
+                  }}
+                  disabled={saving}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors shadow-lg shadow-amber-600/25 disabled:opacity-50"
+                >
+                  {saving ? "Submitting..." : "Yes, Submit My Work"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
