@@ -31,6 +31,7 @@ export async function ensureProfile(clerkUserId: string) {
         full_name: fullName,
         role,
         avatar_url: user.imageUrl || null,
+        onboarded: false,
       },
       { onConflict: "clerk_id" }
     )

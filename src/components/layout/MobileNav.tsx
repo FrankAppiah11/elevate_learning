@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, BookOpen, FolderOpen, Bot, User, LayoutDashboard, Activity, Users, GraduationCap, Settings } from "lucide-react";
+import { Home, BookOpen, FolderOpen, Bot, User, LayoutDashboard, Activity, Users, GraduationCap, Settings, Hash } from "lucide-react";
 
 interface MobileNavProps {
   role: "student" | "instructor";
@@ -11,7 +11,7 @@ interface MobileNavProps {
 
 const studentTabs = [
   { href: "/dashboard/student", label: "Home", icon: Home },
-  { href: "/library", label: "Library", icon: FolderOpen },
+  { href: "/dashboard/student/classes", label: "Classes", icon: Hash },
   { href: "/assignments/new", label: "Upload", icon: BookOpen },
   { href: "/ai-tutors", label: "AI Tutor", icon: Bot },
   { href: "/profile", label: "Profile", icon: User },
@@ -19,8 +19,8 @@ const studentTabs = [
 
 const instructorTabs = [
   { href: "/dashboard/instructor", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/instructor/classes", label: "Classes", icon: Hash },
   { href: "/dashboard/instructor/activities", label: "Activities", icon: Activity },
-  { href: "/dashboard/instructor/students", label: "Students", icon: Users },
   { href: "/dashboard/instructor/grading", label: "Grading", icon: GraduationCap },
   { href: "/dashboard/instructor/settings", label: "Settings", icon: Settings },
 ];

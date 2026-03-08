@@ -16,6 +16,7 @@ import {
   ChevronRight,
   FileText,
   Star,
+  Hash,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -29,28 +30,31 @@ interface DashboardAssignment {
   grade?: string;
 }
 
-interface DashboardModule {
+interface EnrolledClass {
   id: string;
   title: string;
-  description: string;
-  assignment_count: number;
+  description: string | null;
+  class_code: string;
+  profiles?: { full_name: string };
 }
 
 export default function StudentDashboard() {
   const { user } = useUser();
   const [assignments, setAssignments] = useState<DashboardAssignment[]>([]);
+  const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("/api/assignments");
-        if (res.ok) {
-          const data = await res.json();
-          setAssignments(data);
-        }
+        const [assignRes, classRes] = await Promise.all([
+          fetch("/api/assignments"),
+          fetch("/api/classes"),
+        ]);
+        if (assignRes.ok) setAssignments(await assignRes.json());
+        if (classRes.ok) setEnrolledClasses(await classRes.json());
       } catch (err) {
-        console.error("Failed to fetch assignments:", err);
+        console.error("Failed to fetch data:", err);
       } finally {
         setLoading(false);
       }
@@ -68,11 +72,6 @@ export default function StudentDashboard() {
   const weeklyGoal = { current: 7, target: 10 };
 
   const firstName = user?.firstName || "Student";
-
-  const sampleModules: DashboardModule[] = [
-    { id: "1", title: "Advanced Mathematics", description: "Calculus & Linear Algebra", assignment_count: 4 },
-    { id: "2", title: "World Literature", description: "The Modern Novel", assignment_count: 2 },
-  ];
 
   return (
     <AppShell role="student" title="">
@@ -166,35 +165,55 @@ export default function StudentDashboard() {
           </p>
         </Card>
 
-        {/* Current Modules */}
+        {/* Enrolled Classes */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Current Modules</h2>
-            <button className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-              See all
-            </button>
+            <h2 className="text-lg font-semibold text-white">My Classes</h2>
+            <Link href="/dashboard/student/classes" className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+              {enrolledClasses.length > 0 ? "See all" : "Join a class"}
+            </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {sampleModules.map((mod) => (
-              <Card key={mod.id} className="p-4 hover:border-slate-600 transition-colors cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="w-5 h-5 text-indigo-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-white truncate">{mod.title}</h3>
-                      <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+          {enrolledClasses.length === 0 ? (
+            <Card className="p-6 text-center">
+              <Hash className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400 text-sm mb-3">
+                You haven&apos;t joined any classes yet. Ask your instructor for a class code.
+              </p>
+              <Link href="/dashboard/student/classes">
+                <Button size="sm">
+                  <Plus className="w-4 h-4" />
+                  Join a Class
+                </Button>
+              </Link>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {enrolledClasses.slice(0, 4).map((cls) => (
+                <Card key={cls.id} className="p-4 hover:border-slate-600 transition-colors cursor-pointer">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center flex-shrink-0">
+                      <BookOpen className="w-5 h-5 text-indigo-400" />
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">{mod.description}</p>
-                    <div className="mt-2">
-                      <Badge variant="info">{mod.assignment_count} Docs</Badge>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-white truncate">{cls.title}</h3>
+                        <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                      </div>
+                      {cls.description && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{cls.description}</p>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <Badge variant="info" size="sm">
+                          <Hash className="w-3 h-3" />
+                          {cls.class_code}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Assignments */}

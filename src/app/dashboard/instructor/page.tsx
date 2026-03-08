@@ -16,9 +16,14 @@ import {
   AlertCircle,
   Eye,
   Star,
+  Hash,
+  Copy,
+  BookOpen,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 interface RecentActivity {
   id: string;
@@ -32,10 +37,28 @@ interface RecentActivity {
   course?: string;
 }
 
+interface InstructorClass {
+  id: string;
+  title: string;
+  class_code: string;
+  enrollments?: { count: number }[];
+}
+
 export default function InstructorDashboard() {
   const { user } = useUser();
   const [activities, setActivities] = useState<RecentActivity[]>([]);
+  const [classes, setClasses] = useState<InstructorClass[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("all");
+
+  useEffect(() => {
+    async function fetchClasses() {
+      try {
+        const res = await fetch("/api/classes");
+        if (res.ok) setClasses(await res.json());
+      } catch {}
+    }
+    fetchClasses();
+  }, []);
 
   const sampleActivities: RecentActivity[] = [
     {
@@ -76,9 +99,14 @@ export default function InstructorDashboard() {
     return true;
   });
 
+  const totalStudents = classes.reduce(
+    (sum, c) => sum + (c.enrollments?.[0]?.count ?? 0),
+    0
+  );
+
   const stats = {
-    totalStudents: 124,
-    studentsChange: -7,
+    totalStudents,
+    totalClasses: classes.length,
     pendingReview: 18,
     pendingChange: 3,
     avgAiScore: 84,
@@ -105,10 +133,15 @@ export default function InstructorDashboard() {
               <p className="text-xs text-slate-400 uppercase tracking-wider">Total Students</p>
               <Users className="w-4 h-4 text-indigo-400" />
             </div>
-            <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-white">{stats.totalStudents}</p>
-              <span className="text-xs text-red-400">{stats.studentsChange}</span>
+            <p className="text-2xl font-bold text-white">{stats.totalStudents}</p>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-slate-400 uppercase tracking-wider">My Classes</p>
+              <BookOpen className="w-4 h-4 text-purple-400" />
             </div>
+            <p className="text-2xl font-bold text-white">{stats.totalClasses}</p>
           </Card>
 
           <Card variant="highlight" className="p-4">
@@ -124,19 +157,60 @@ export default function InstructorDashboard() {
 
           <Card className="p-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 uppercase tracking-wider">Avg. AI Tutoring Score</p>
+              <p className="text-xs text-slate-400 uppercase tracking-wider">Avg. AI Score</p>
               <TrendingUp className="w-4 h-4 text-emerald-400" />
             </div>
             <p className="text-2xl font-bold text-white">{stats.avgAiScore}%</p>
           </Card>
+        </div>
 
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-slate-400 uppercase tracking-wider">Period</p>
-              <Clock className="w-4 h-4 text-slate-400" />
+        {/* Class Codes Quick View */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Class Codes</h2>
+            <Link href="/dashboard/instructor/classes" className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
+              Manage Classes
+            </Link>
+          </div>
+          {classes.length === 0 ? (
+            <Card className="p-6 text-center">
+              <BookOpen className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400 text-sm mb-3">Create your first class to get a shareable code for students.</p>
+              <Link href="/dashboard/instructor/classes">
+                <Button size="sm">
+                  <Plus className="w-4 h-4" />
+                  Create a Class
+                </Button>
+              </Link>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {classes.slice(0, 6).map((cls) => (
+                <Card key={cls.id} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-white truncate flex-1">{cls.title}</h3>
+                    <Badge variant="info" size="sm">
+                      {cls.enrollments?.[0]?.count ?? 0} students
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-900/60 rounded-lg px-3 py-2">
+                    <span className="font-mono text-lg font-bold text-indigo-400 tracking-wider">
+                      {cls.class_code}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(cls.class_code);
+                        toast.success(`Code ${cls.class_code} copied!`);
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-slate-700 transition-colors"
+                    >
+                      <Copy className="w-4 h-4 text-slate-400" />
+                    </button>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <p className="text-sm font-medium text-white">{stats.avgDuration}</p>
-          </Card>
+          )}
         </div>
 
         {/* Recent Activities */}

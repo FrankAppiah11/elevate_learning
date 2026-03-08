@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import Card from "@/components/ui/Card";
@@ -33,6 +33,13 @@ const uploadTypes: { type: UploadType; label: string; desc: string; icon: React.
   { type: "text", label: "Text", desc: "Type Content", icon: Type },
 ];
 
+interface EnrolledClass {
+  id: string;
+  title: string;
+  class_code: string;
+  instructor_id: string;
+}
+
 export default function NewAssignmentPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -44,6 +51,15 @@ export default function NewAssignmentPage() {
   const [selectedTutor, setSelectedTutor] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [step, setStep] = useState<"upload" | "tutor">("upload");
+  const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/classes")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => setEnrolledClasses(data || []))
+      .catch(() => {});
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -98,6 +114,8 @@ export default function NewAssignmentPage() {
         fileName = file.name;
       }
 
+      const selectedClass = enrolledClasses.find((c) => c.id === selectedClassId);
+
       const res = await fetch("/api/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,6 +127,8 @@ export default function NewAssignmentPage() {
           file_name: fileName,
           text_content: uploadType === "text" ? textContent : null,
           web_url: uploadType === "weblink" ? webUrl : null,
+          module_id: selectedClassId || null,
+          instructor_id: selectedClass?.instructor_id || null,
         }),
       });
 
@@ -172,6 +192,27 @@ export default function NewAssignmentPage() {
                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
               />
             </div>
+
+            {/* Class Selector */}
+            {enrolledClasses.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Class / Course
+                </label>
+                <select
+                  value={selectedClassId || ""}
+                  onChange={(e) => setSelectedClassId(e.target.value || null)}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">Select a class...</option>
+                  {enrolledClasses.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.title} ({cls.class_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Upload Type Selection */}
             <div>

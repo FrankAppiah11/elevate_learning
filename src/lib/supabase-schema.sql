@@ -12,20 +12,24 @@ create table public.profiles (
   full_name text not null,
   role text not null check (role in ('student', 'instructor')),
   avatar_url text,
+  onboarded boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
 
--- Modules / Courses
+-- Modules / Courses (each has a unique class code)
 create table public.modules (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   description text,
   instructor_id uuid references public.profiles(id),
+  class_code text unique not null,
   created_at timestamptz default now()
 );
 
--- Module enrollments
+create index idx_modules_class_code on public.modules(class_code);
+
+-- Module enrollments (links students to classes via instructor)
 create table public.enrollments (
   id uuid primary key default uuid_generate_v4(),
   student_id uuid references public.profiles(id),

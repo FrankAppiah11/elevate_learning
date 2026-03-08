@@ -7,6 +7,7 @@ export interface UserProfile {
   full_name: string;
   role: UserRole;
   avatar_url?: string;
+  onboarded: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,7 @@ export interface Module {
   title: string;
   description?: string;
   instructor_id: string;
+  class_code: string;
   created_at: string;
 }
 

@@ -14,6 +14,7 @@ import {
   Activity,
   Settings,
   GraduationCap,
+  Hash,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -22,6 +23,7 @@ interface SidebarProps {
 
 const studentLinks = [
   { href: "/dashboard/student", label: "Home", icon: Home },
+  { href: "/dashboard/student/classes", label: "My Classes", icon: Hash },
   { href: "/assignments/new", label: "New Assignment", icon: BookOpen },
   { href: "/library", label: "Library", icon: FolderOpen },
   { href: "/ai-tutors", label: "AI Tutors", icon: Bot },
@@ -30,6 +32,7 @@ const studentLinks = [
 
 const instructorLinks = [
   { href: "/dashboard/instructor", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/instructor/classes", label: "My Classes", icon: Hash },
   { href: "/dashboard/instructor/activities", label: "Activities", icon: Activity },
   { href: "/dashboard/instructor/students", label: "Students", icon: Users },
   { href: "/dashboard/instructor/grading", label: "Grading", icon: GraduationCap },
