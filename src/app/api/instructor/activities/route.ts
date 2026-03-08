@@ -35,7 +35,7 @@ export async function GET() {
       student_id,
       profiles!assignments_student_id_fkey(id, full_name, email, avatar_url),
       modules!assignments_module_id_fkey(title, class_code),
-      grading_results(weighted_total, letter_grade)
+      grading_results(weighted_total, letter_grade, problem_solving_score, ai_competency_score, correctness_score)
     `)
     .in("module_id", moduleIds)
     .in("status", ["submitted", "graded", "reviewed"])
@@ -47,8 +47,15 @@ export async function GET() {
   const activities = (assignments || []).map((a) => {
     const student = a.profiles as unknown as Record<string, string> | null;
     const mod = a.modules as unknown as Record<string, string> | null;
-    const gradingArr = a.grading_results as unknown as Record<string, unknown>[] | null;
-    const grading = gradingArr && gradingArr.length > 0 ? gradingArr[0] : null;
+
+    // grading_results may be an object (unique FK) or an array depending on Supabase version
+    const raw = a.grading_results as unknown;
+    let grading: Record<string, unknown> | null = null;
+    if (Array.isArray(raw) && raw.length > 0) {
+      grading = raw[0] as Record<string, unknown>;
+    } else if (raw && typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw as object).length > 0) {
+      grading = raw as Record<string, unknown>;
+    }
 
     return {
       id: a.id,
@@ -63,6 +70,9 @@ export async function GET() {
       class_code: mod?.class_code || "",
       ai_score: grading ? Number(grading.weighted_total) : undefined,
       letter_grade: grading ? String(grading.letter_grade) : undefined,
+      problem_solving: grading ? Number(grading.problem_solving_score) : undefined,
+      ai_competency: grading ? Number(grading.ai_competency_score) : undefined,
+      correctness: grading ? Number(grading.correctness_score) : undefined,
       submitted_at: a.updated_at,
     };
   });

@@ -27,6 +27,9 @@ interface GradeItem {
   course: string;
   ai_score?: number;
   letter_grade?: string;
+  problem_solving?: number;
+  ai_competency?: number;
+  correctness?: number;
   submitted_at: string;
 }
 
@@ -156,11 +159,29 @@ export default function GradingPage() {
                     </p>
 
                     {item.ai_score !== undefined && (
-                      <div className="flex items-center gap-3 mt-3">
+                      <div className="flex items-center gap-4 mt-3">
                         <div className="text-center">
                           <ScoreCircle score={Math.round(item.ai_score)} size="sm" />
-                          <p className="text-[10px] text-slate-500 mt-1">AI Score</p>
+                          <p className="text-[10px] text-slate-500 mt-1">Overall</p>
                         </div>
+                        {item.problem_solving !== undefined && (
+                          <div className="text-center">
+                            <ScoreCircle score={Math.round(item.problem_solving)} size="sm" />
+                            <p className="text-[10px] text-slate-500 mt-1">Problem Solving</p>
+                          </div>
+                        )}
+                        {item.ai_competency !== undefined && (
+                          <div className="text-center">
+                            <ScoreCircle score={Math.round(item.ai_competency)} size="sm" />
+                            <p className="text-[10px] text-slate-500 mt-1">AI Competency</p>
+                          </div>
+                        )}
+                        {item.correctness !== undefined && (
+                          <div className="text-center">
+                            <ScoreCircle score={Math.round(item.correctness)} size="sm" />
+                            <p className="text-[10px] text-slate-500 mt-1">Correctness</p>
+                          </div>
+                        )}
                         {item.letter_grade && (
                           <Badge variant="info" size="md">
                             {item.letter_grade}
@@ -200,16 +221,46 @@ export default function GradingPage() {
           {gradeModal && (
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-slate-400 mb-2">
+                <p className="text-sm text-slate-400 mb-3">
                   {gradeModal.assignment_title}
                 </p>
+
                 {gradeModal.ai_score !== undefined && (
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-sm text-slate-400">AI Suggested:</span>
-                    <Badge variant="info" size="md">
-                      {gradeModal.letter_grade || "—"} (
-                      {Math.round(gradeModal.ai_score)}%)
-                    </Badge>
+                  <div className="bg-slate-700/50 rounded-xl p-4 mb-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-slate-400 uppercase tracking-wider">
+                        AI Assessment
+                      </span>
+                      {gradeModal.letter_grade && (
+                        <Badge variant="info" size="md">
+                          {gradeModal.letter_grade}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      <div>
+                        <ScoreCircle score={Math.round(gradeModal.ai_score)} size="sm" />
+                        <p className="text-[10px] text-slate-400 mt-1">Overall</p>
+                      </div>
+                      {gradeModal.problem_solving !== undefined && (
+                        <div>
+                          <ScoreCircle score={Math.round(gradeModal.problem_solving)} size="sm" />
+                          <p className="text-[10px] text-slate-400 mt-1">Problem Solving</p>
+                        </div>
+                      )}
+                      {gradeModal.ai_competency !== undefined && (
+                        <div>
+                          <ScoreCircle score={Math.round(gradeModal.ai_competency)} size="sm" />
+                          <p className="text-[10px] text-slate-400 mt-1">AI Competency</p>
+                        </div>
+                      )}
+                      {gradeModal.correctness !== undefined && (
+                        <div>
+                          <ScoreCircle score={Math.round(gradeModal.correctness)} size="sm" />
+                          <p className="text-[10px] text-slate-400 mt-1">Correctness</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
