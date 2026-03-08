@@ -12,10 +12,35 @@ export async function GET() {
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
 
   const supabase = getServiceClient();
-  let query = supabase.from("assignments").select("*").order("created_at", { ascending: false });
 
   if (profile.role === "student") {
-    query = query.eq("student_id", profile.id);
+    const { data, error } = await supabase
+      .from("assignments")
+      .select("*")
+      .eq("student_id", profile.id)
+      .order("created_at", { ascending: false });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
+
+  // Instructor: get assignments from all their classes
+  const { data: modules } = await supabase
+    .from("modules")
+    .select("id")
+    .eq("instructor_id", profile.id);
+
+  const moduleIds = modules?.map((m) => m.id) || [];
+
+  let query = supabase
+    .from("assignments")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (moduleIds.length > 0) {
+    query = query.or(
+      `instructor_id.eq.${profile.id},module_id.in.(${moduleIds.join(",")})`
+    );
   } else {
     query = query.eq("instructor_id", profile.id);
   }
