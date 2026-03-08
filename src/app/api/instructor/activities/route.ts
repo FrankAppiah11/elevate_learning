@@ -33,6 +33,8 @@ export async function GET() {
       updated_at,
       module_id,
       student_id,
+      completed_file_url,
+      completed_file_name,
       profiles!assignments_student_id_fkey(id, full_name, email, avatar_url),
       modules!assignments_module_id_fkey(title, class_code),
       grading_results(weighted_total, letter_grade, problem_solving_score, ai_competency_score, correctness_score)
@@ -73,6 +75,8 @@ export async function GET() {
       problem_solving: grading ? Number(grading.problem_solving_score) : undefined,
       ai_competency: grading ? Number(grading.ai_competency_score) : undefined,
       correctness: grading ? Number(grading.correctness_score) : undefined,
+      completed_file_url: a.completed_file_url || null,
+      completed_file_name: a.completed_file_name || null,
       submitted_at: a.updated_at,
     };
   });

@@ -51,7 +51,9 @@ create table public.assignments (
   file_name text,
   text_content text,
   web_url text,
-  status text not null default 'draft' check (status in ('draft', 'in_progress', 'submitted', 'graded', 'reviewed')),
+  completed_file_url text,
+  completed_file_name text,
+  status text not null default 'draft' check (status in ('draft', 'in_progress', 'submitted', 'graded', 'reviewed', 'redo_requested')),
   folder_label text not null,
   created_at timestamptz default now(),
   updated_at timestamptz default now()

@@ -9,7 +9,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { interactions, duration_seconds, tutor_id } = body;
+  const { interactions, duration_seconds, tutor_id, completed_file_url, completed_file_name } = body;
   const supabase = getServiceClient();
 
   const profile = await ensureProfile(userId);
@@ -60,9 +60,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await supabase.from("tutor_interactions").insert(interactionRows);
   }
 
+  const assignmentUpdate: Record<string, unknown> = {
+    status: "submitted",
+    updated_at: new Date().toISOString(),
+  };
+  if (completed_file_url) assignmentUpdate.completed_file_url = completed_file_url;
+  if (completed_file_name) assignmentUpdate.completed_file_name = completed_file_name;
+
   await supabase
     .from("assignments")
-    .update({ status: "submitted", updated_at: new Date().toISOString() })
+    .update(assignmentUpdate)
     .eq("id", id);
 
   if (assignment.instructor_id) {

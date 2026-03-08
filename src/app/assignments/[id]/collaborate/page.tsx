@@ -20,6 +20,9 @@ import {
   BookOpen,
   AlertTriangle,
   X,
+  Upload,
+  Paperclip,
+  Trash2,
 } from "lucide-react";
 import { AI_TUTORS } from "@/lib/ai-tutors";
 import { toast } from "sonner";
@@ -60,6 +63,9 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
   const [saving, setSaving] = useState(false);
   const [showAssignment, setShowAssignment] = useState(true);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [completedFile, setCompletedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -90,7 +96,7 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
         const data = await res.json();
         setAssignment(data);
 
-        if (data.status === "draft") {
+        if (data.status === "draft" || data.status === "redo_requested") {
           await fetch(`/api/assignments/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -190,8 +196,33 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleSubmit() {
+    if (!completedFile) {
+      toast.error("Please attach your completed work before submitting.");
+      return;
+    }
+
     setSaving(true);
+    setUploadingFile(true);
+
     try {
+      let completedFileUrl = "";
+      let completedFileName = completedFile.name;
+
+      const formData = new FormData();
+      formData.append("file", completedFile);
+      formData.append("assignment_id", id);
+
+      const uploadRes = await fetch("/api/assignments/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error("File upload failed");
+
+      const uploadData = await uploadRes.json();
+      completedFileUrl = uploadData.url;
+      setUploadingFile(false);
+
       const interactionsPayload = messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -206,6 +237,8 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
           interactions: interactionsPayload,
           duration_seconds: duration,
           tutor_id: selectedTutor,
+          completed_file_url: completedFileUrl,
+          completed_file_name: completedFileName,
         }),
       });
 
@@ -233,6 +266,7 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
       }, 1500);
     } catch (err) {
       toast.error("Failed to submit work");
+      setUploadingFile(false);
     } finally {
       setSaving(false);
     }
@@ -552,11 +586,67 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
                 to your instructor for review.
               </p>
 
-              <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-3 mb-6 w-full">
+              <div className="bg-amber-600/10 border border-amber-500/20 rounded-xl p-3 mb-4 w-full">
                 <p className="text-xs text-amber-300 font-medium">
                   This action cannot be undone. Make sure you have reviewed your
                   work and are satisfied with your answers before proceeding.
                 </p>
+              </div>
+
+              {/* Completed Work Attachment */}
+              <div className="w-full mb-4">
+                <label className="block text-xs font-medium text-slate-300 mb-2 text-left">
+                  <Paperclip className="w-3.5 h-3.5 inline mr-1" />
+                  Attach Completed Work <span className="text-amber-400">*</span>
+                </label>
+                {completedFile ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-700/50 border border-slate-600">
+                    <FileText className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{completedFile.name}</p>
+                      <p className="text-xs text-slate-400">
+                        {(completedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setCompletedFile(null)}
+                      className="p-1.5 rounded-lg hover:bg-slate-600 text-slate-400 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full p-4 rounded-xl border-2 border-dashed border-slate-600 hover:border-indigo-500 bg-slate-700/30 hover:bg-indigo-600/5 transition-all cursor-pointer group"
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="w-6 h-6 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+                      <p className="text-xs text-slate-400 group-hover:text-slate-300">
+                        Click to upload your completed assignment
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        PDF, Word, images, or text files (max 10 MB)
+                      </p>
+                    </div>
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast.error("File must be under 10 MB");
+                        return;
+                      }
+                      setCompletedFile(file);
+                    }
+                  }}
+                />
               </div>
 
               <div className="flex items-center gap-2 text-xs text-slate-500 mb-6">
@@ -575,13 +665,17 @@ export default function CollaboratePage({ params }: { params: Promise<{ id: stri
                 </button>
                 <button
                   onClick={() => {
+                    if (!completedFile) {
+                      toast.error("Please attach your completed work.");
+                      return;
+                    }
                     setShowSubmitConfirm(false);
                     handleSubmit();
                   }}
-                  disabled={saving}
-                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors shadow-lg shadow-amber-600/25 disabled:opacity-50"
+                  disabled={saving || uploadingFile || !completedFile}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors shadow-lg shadow-amber-600/25 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? "Submitting..." : "Yes, Submit My Work"}
+                  {uploadingFile ? "Uploading..." : saving ? "Submitting..." : "Yes, Submit My Work"}
                 </button>
               </div>
             </div>

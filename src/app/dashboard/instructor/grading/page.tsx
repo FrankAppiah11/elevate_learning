@@ -13,6 +13,9 @@ import {
   Edit3,
   Send,
   FileCheck,
+  Download,
+  Paperclip,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -30,6 +33,8 @@ interface GradeItem {
   problem_solving?: number;
   ai_competency?: number;
   correctness?: number;
+  completed_file_url?: string | null;
+  completed_file_name?: string | null;
   submitted_at: string;
 }
 
@@ -40,6 +45,8 @@ export default function GradingPage() {
   const [instructorGrade, setInstructorGrade] = useState("");
   const [instructorNotes, setInstructorNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [requestingRedo, setRequestingRedo] = useState(false);
+  const [redoReason, setRedoReason] = useState("");
 
   useEffect(() => {
     async function fetchData() {
@@ -94,6 +101,36 @@ export default function GradingPage() {
       toast.error("Error submitting grade");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function requestRedo() {
+    if (!gradeModal) return;
+    setRequestingRedo(true);
+    try {
+      const res = await fetch(
+        `/api/assignments/${gradeModal.assignment_id}/redo`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: redoReason }),
+        }
+      );
+
+      if (res.ok) {
+        toast.success(`Redo requested for ${gradeModal.student_name}`);
+        setItems((prev) =>
+          prev.filter((i) => i.id !== gradeModal.id)
+        );
+        setGradeModal(null);
+        setRedoReason("");
+      } else {
+        toast.error("Failed to request redo");
+      }
+    } catch {
+      toast.error("Error requesting redo");
+    } finally {
+      setRequestingRedo(false);
     }
   }
 
@@ -157,6 +194,21 @@ export default function GradingPage() {
                     <p className="text-sm text-slate-300 mt-1">
                       {item.assignment_title}
                     </p>
+
+                    {item.completed_file_url && (
+                      <div className="mt-2">
+                        <a
+                          href={item.completed_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-600/10 px-2.5 py-1.5 rounded-lg"
+                        >
+                          <Paperclip className="w-3 h-3" />
+                          {item.completed_file_name || "Completed work"}
+                          <Download className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
 
                     {item.ai_score !== undefined && (
                       <div className="flex items-center gap-4 mt-3">
@@ -225,6 +277,26 @@ export default function GradingPage() {
                   {gradeModal.assignment_title}
                 </p>
 
+                {gradeModal.completed_file_url && (
+                  <div className="bg-slate-700/50 rounded-xl p-4 mb-3">
+                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">
+                      Student&apos;s Completed Work
+                    </p>
+                    <a
+                      href={gradeModal.completed_file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors group"
+                    >
+                      <FileCheck className="w-5 h-5 text-indigo-400" />
+                      <span className="text-sm text-white flex-1 truncate">
+                        {gradeModal.completed_file_name || "Completed assignment"}
+                      </span>
+                      <Download className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                    </a>
+                  </div>
+                )}
+
                 {gradeModal.ai_score !== undefined && (
                   <div className="bg-slate-700/50 rounded-xl p-4 mb-2">
                     <div className="flex items-center justify-between mb-3">
@@ -291,7 +363,33 @@ export default function GradingPage() {
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              {/* Request Redo Section */}
+              <details className="group">
+                <summary className="flex items-center gap-2 cursor-pointer text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Request student redo instead
+                </summary>
+                <div className="mt-3 space-y-3 pl-1">
+                  <textarea
+                    value={redoReason}
+                    onChange={(e) => setRedoReason(e.target.value)}
+                    placeholder="Explain why the student should redo this assignment..."
+                    rows={2}
+                    className="w-full px-4 py-3 bg-slate-700 border border-amber-500/30 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none text-sm"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full border-amber-500/30 text-amber-400 hover:bg-amber-600/10"
+                    onClick={requestRedo}
+                    loading={requestingRedo}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Request Redo
+                  </Button>
+                </div>
+              </details>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-700">
                 <Button
                   variant="secondary"
                   className="flex-1"

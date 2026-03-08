@@ -25,6 +25,7 @@ import {
   Target,
   Check,
   X,
+  RotateCcw,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -451,6 +452,8 @@ export default function StudentDashboard() {
                               variant={
                                 assignment.status === "graded" || assignment.status === "reviewed"
                                   ? "success"
+                                  : assignment.status === "redo_requested"
+                                  ? "warning"
                                   : assignment.status === "in_progress"
                                   ? "warning"
                                   : assignment.status === "submitted"
@@ -460,6 +463,8 @@ export default function StudentDashboard() {
                             >
                               {assignment.status === "submitted"
                                 ? "in review"
+                                : assignment.status === "redo_requested"
+                                ? "redo requested"
                                 : assignment.status.replace("_", " ")}
                             </Badge>
                             <ChevronRight className="w-4 h-4 text-slate-500 hidden sm:block" />
