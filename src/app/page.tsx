@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GraduationCap, Bot, BarChart3, Shield, ArrowRight, BookOpen, Users, Zap } from "lucide-react";
+import { GraduationCap, Bot, BarChart3, Shield, ArrowRight, BookOpen, Users, Zap, Hash } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -107,15 +107,15 @@ export default function LandingPage() {
               color: "from-amber-500 to-orange-500",
             },
             {
-              icon: Users,
-              title: "Instructor Dashboard",
-              desc: "Real-time activity monitoring, student progress tracking, and the ability to review AI interactions and provide final grades.",
+              icon: Hash,
+              title: "Class Codes",
+              desc: "Instructors create classes with unique codes. Students enter a code to join, instantly linking them to the instructor for seamless assignment tracking.",
               color: "from-cyan-500 to-blue-500",
             },
             {
-              icon: Zap,
-              title: "LMS Integration",
-              desc: "Seamlessly integrates with Canvas, Blackboard, Moodle, and other LMS platforms via LTI 1.3 protocol.",
+              icon: Users,
+              title: "Instructor Dashboard",
+              desc: "Real-time activity monitoring, class management with shareable codes, student progress tracking, and final grading.",
               color: "from-rose-500 to-red-500",
             },
           ].map((feature, i) => (
