@@ -7,6 +7,8 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import ProgressBar from "@/components/ui/ProgressBar";
+import Modal from "@/components/ui/Modal";
+import ScoreCircle from "@/components/ui/ScoreCircle";
 import {
   Plus,
   BookOpen,
@@ -17,6 +19,8 @@ import {
   FileText,
   Star,
   Hash,
+  User,
+  ExternalLink,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -28,6 +32,13 @@ interface DashboardAssignment {
   created_at: string;
   module_title?: string;
   grade?: string;
+  ai_score: number | null;
+  letter_grade: string | null;
+  problem_solving_score: number | null;
+  ai_competency_score: number | null;
+  correctness_score: number | null;
+  instructor_grade: string | null;
+  instructor_notes: string | null;
 }
 
 interface EnrolledClass {
@@ -38,11 +49,15 @@ interface EnrolledClass {
   profiles?: { full_name: string };
 }
 
+const isReviewable = (status: string) =>
+  ["submitted", "graded", "reviewed"].includes(status);
+
 export default function StudentDashboard() {
   const { user } = useUser();
   const [assignments, setAssignments] = useState<DashboardAssignment[]>([]);
   const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAssignment, setSelectedAssignment] = useState<DashboardAssignment | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -68,10 +83,24 @@ export default function StudentDashboard() {
   const inProgressCount = assignments.filter(
     (a) => a.status === "in_progress" || a.status === "submitted"
   ).length;
-  const avgGrade = 94;
-  const weeklyGoal = { current: 7, target: 10 };
 
+  const gradedAssignments = assignments.filter((a) => a.ai_score !== null);
+  const avgGrade =
+    gradedAssignments.length > 0
+      ? Math.round(
+          gradedAssignments.reduce((sum, a) => sum + (a.ai_score ?? 0), 0) /
+            gradedAssignments.length
+        )
+      : null;
+
+  const weeklyGoal = { current: 7, target: 10 };
   const firstName = user?.firstName || "Student";
+
+  function handleAssignmentClick(assignment: DashboardAssignment) {
+    if (isReviewable(assignment.status)) {
+      setSelectedAssignment(assignment);
+    }
+  }
 
   return (
     <AppShell role="student" title="">
@@ -123,8 +152,9 @@ export default function StudentDashboard() {
               </div>
               <div className="min-w-0">
                 <div className="flex items-baseline gap-1 flex-wrap">
-                  <p className="text-xl sm:text-2xl font-bold text-white">{avgGrade}%</p>
-                  <span className="text-[10px] sm:text-xs text-emerald-400">Top 5%</span>
+                  <p className="text-xl sm:text-2xl font-bold text-white">
+                    {avgGrade !== null ? `${avgGrade}%` : "—"}
+                  </p>
                 </div>
                 <p className="text-[10px] sm:text-xs text-slate-400">Avg. Grade</p>
               </div>
@@ -241,9 +271,13 @@ export default function StudentDashboard() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {assignments.slice(0, 5).map((assignment) => (
-                <Link key={assignment.id} href={`/assignments/${assignment.id}/collaborate`}>
-                  <Card className="p-4 hover:border-slate-600 transition-all cursor-pointer group">
+              {assignments.slice(0, 5).map((assignment) => {
+                const reviewable = isReviewable(assignment.status);
+                const inner = (
+                  <Card
+                    className="p-4 hover:border-slate-600 transition-all cursor-pointer group"
+                    onClick={reviewable ? () => handleAssignmentClick(assignment) : undefined}
+                  >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center group-hover:bg-indigo-600/20 transition-colors flex-shrink-0">
                         <FileText className="w-5 h-5 text-slate-400 group-hover:text-indigo-400 transition-colors" />
@@ -252,9 +286,19 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="text-sm font-semibold text-white truncate">{assignment.title}</h3>
                           <div className="flex items-center gap-2 flex-shrink-0">
+                            {assignment.ai_score !== null && (
+                              <Badge variant="default" size="sm" className="bg-indigo-600/30 text-indigo-300 border-indigo-500/30">
+                                AI: {assignment.ai_score}%
+                              </Badge>
+                            )}
+                            {assignment.instructor_grade && (
+                              <Badge variant="success" size="sm">
+                                Final: {assignment.instructor_grade}
+                              </Badge>
+                            )}
                             <Badge
                               variant={
-                                assignment.status === "graded"
+                                assignment.status === "graded" || assignment.status === "reviewed"
                                   ? "success"
                                   : assignment.status === "in_progress"
                                   ? "warning"
@@ -263,7 +307,9 @@ export default function StudentDashboard() {
                                   : "default"
                               }
                             >
-                              {assignment.status.replace("_", " ")}
+                              {assignment.status === "submitted"
+                                ? "in review"
+                                : assignment.status.replace("_", " ")}
                             </Badge>
                             <ChevronRight className="w-4 h-4 text-slate-500 hidden sm:block" />
                           </div>
@@ -272,12 +318,170 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   </Card>
-                </Link>
-              ))}
+                );
+
+                if (reviewable) {
+                  return <div key={assignment.id}>{inner}</div>;
+                }
+                return (
+                  <Link key={assignment.id} href={`/assignments/${assignment.id}/collaborate`}>
+                    {inner}
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Scorecard Modal */}
+      <Modal
+        open={!!selectedAssignment}
+        onClose={() => setSelectedAssignment(null)}
+        title="Assignment Scorecard"
+        className="max-w-xl"
+      >
+        {selectedAssignment && (
+          <div className="space-y-5">
+            {/* Assignment Info */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/60">
+              <FileText className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-white truncate">{selectedAssignment.title}</h4>
+                <p className="text-xs text-slate-400">{selectedAssignment.folder_label}</p>
+              </div>
+              <Badge
+                variant={
+                  selectedAssignment.status === "graded" || selectedAssignment.status === "reviewed"
+                    ? "success"
+                    : "info"
+                }
+                className="ml-auto flex-shrink-0"
+              >
+                {selectedAssignment.status === "submitted"
+                  ? "in review"
+                  : selectedAssignment.status.replace("_", " ")}
+              </Badge>
+            </div>
+
+            {/* AI Grade Section */}
+            <div>
+              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                AI Grade
+              </h4>
+              {selectedAssignment.ai_score !== null ? (
+                <div className="space-y-4">
+                  {/* Overall Score */}
+                  <div className="flex items-center justify-center gap-5 p-4 rounded-xl bg-gradient-to-br from-indigo-600/10 to-purple-600/10 border border-indigo-500/20">
+                    <ScoreCircle
+                      score={selectedAssignment.ai_score}
+                      size="md"
+                      grade={selectedAssignment.letter_grade || undefined}
+                      label="Overall"
+                    />
+                    <div>
+                      <p className="text-2xl font-bold text-white">{selectedAssignment.ai_score}%</p>
+                      <p className="text-sm text-slate-400">Weighted Total</p>
+                      {selectedAssignment.letter_grade && (
+                        <Badge variant="info" size="md" className="mt-1">
+                          {selectedAssignment.letter_grade}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Breakdown */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="text-center p-3 rounded-xl bg-slate-900/60">
+                      <ScoreCircle score={selectedAssignment.problem_solving_score ?? 0} size="sm" />
+                      <p className="text-[10px] text-slate-400 mt-1.5">Problem Solving</p>
+                      <p className="text-xs font-semibold text-white">
+                        {selectedAssignment.problem_solving_score ?? "—"}%
+                      </p>
+                      <p className="text-[10px] text-slate-500">60% weight</p>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-slate-900/60">
+                      <ScoreCircle score={selectedAssignment.ai_competency_score ?? 0} size="sm" />
+                      <p className="text-[10px] text-slate-400 mt-1.5">AI Competency</p>
+                      <p className="text-xs font-semibold text-white">
+                        {selectedAssignment.ai_competency_score ?? "—"}%
+                      </p>
+                      <p className="text-[10px] text-slate-500">30% weight</p>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-slate-900/60">
+                      <ScoreCircle score={selectedAssignment.correctness_score ?? 0} size="sm" />
+                      <p className="text-[10px] text-slate-400 mt-1.5">Correctness</p>
+                      <p className="text-xs font-semibold text-white">
+                        {selectedAssignment.correctness_score ?? "—"}%
+                      </p>
+                      <p className="text-[10px] text-slate-500">10% weight</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-900/60 border border-dashed border-slate-700">
+                  <Clock className="w-5 h-5 text-slate-500" />
+                  <p className="text-sm text-slate-400">AI grading is processing. Check back shortly.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Instructor Grade Section */}
+            <div>
+              <h4 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                Instructor&apos;s Final Grade
+              </h4>
+              {selectedAssignment.instructor_grade ? (
+                <div className="p-4 rounded-xl bg-emerald-600/10 border border-emerald-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg font-bold text-white">{selectedAssignment.instructor_grade}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-emerald-300">Grade Received</p>
+                      {selectedAssignment.instructor_notes ? (
+                        <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                          {selectedAssignment.instructor_notes}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 mt-1">No additional notes provided.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900/60 border border-dashed border-amber-500/30">
+                  <div className="w-12 h-12 rounded-full bg-amber-600/20 flex items-center justify-center flex-shrink-0">
+                    <User className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-amber-300">Pending Instructor Review</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Your instructor hasn&apos;t graded this yet. You&apos;ll be notified when the final grade is available.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <Link href={`/assignments/${selectedAssignment.id}/feedback`} className="flex-1">
+                <Button className="w-full">
+                  <ExternalLink className="w-4 h-4" />
+                  View Full Report
+                </Button>
+              </Link>
+              <Button
+                variant="secondary"
+                onClick={() => setSelectedAssignment(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </AppShell>
   );
 }

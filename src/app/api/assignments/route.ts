@@ -16,12 +16,35 @@ export async function GET() {
   if (profile.role === "student") {
     const { data, error } = await supabase
       .from("assignments")
-      .select("*")
+      .select("*, grading_results(weighted_total, letter_grade, problem_solving_score, ai_competency_score, correctness_score, instructor_grade, instructor_notes, instructor_graded_at)")
       .eq("student_id", profile.id)
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+
+    const enriched = (data || []).map((a) => {
+      const raw = a.grading_results as unknown;
+      let grading: Record<string, unknown> | null = null;
+      if (Array.isArray(raw) && raw.length > 0) {
+        grading = raw[0] as Record<string, unknown>;
+      } else if (raw && typeof raw === "object" && !Array.isArray(raw) && Object.keys(raw as object).length > 0) {
+        grading = raw as Record<string, unknown>;
+      }
+
+      return {
+        ...a,
+        grading_results: undefined,
+        ai_score: grading ? Number(grading.weighted_total) : null,
+        letter_grade: grading ? String(grading.letter_grade) : null,
+        problem_solving_score: grading ? Number(grading.problem_solving_score) : null,
+        ai_competency_score: grading ? Number(grading.ai_competency_score) : null,
+        correctness_score: grading ? Number(grading.correctness_score) : null,
+        instructor_grade: grading ? (grading.instructor_grade as string | null) : null,
+        instructor_notes: grading ? (grading.instructor_notes as string | null) : null,
+      };
+    });
+
+    return NextResponse.json(enriched);
   }
 
   // Instructor: get assignments from all their classes
