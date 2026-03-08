@@ -114,13 +114,27 @@ create table public.feedback_reports (
   generated_at timestamptz default now()
 );
 
+-- Weekly study goals (student-set, editable)
+create table public.weekly_goals (
+  id uuid primary key default uuid_generate_v4(),
+  student_id uuid references public.profiles(id) not null,
+  target integer not null default 5,
+  week_start date not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(student_id, week_start)
+);
+
+create index idx_weekly_goals_student on public.weekly_goals(student_id);
+create index idx_weekly_goals_week on public.weekly_goals(student_id, week_start);
+
 -- Notifications
 create table public.notifications (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid references public.profiles(id) not null,
   title text not null,
   message text not null,
-  type text not null check (type in ('submission', 'grade', 'feedback', 'review')),
+  type text not null check (type in ('submission', 'grade', 'feedback', 'review', 'goal_reminder')),
   related_assignment_id uuid references public.assignments(id),
   is_read boolean default false,
   created_at timestamptz default now()
@@ -138,6 +152,7 @@ create index idx_profiles_clerk on public.profiles(clerk_id);
 create index idx_enrollments_student on public.enrollments(student_id);
 
 -- Row Level Security
+alter table public.weekly_goals enable row level security;
 alter table public.profiles enable row level security;
 alter table public.assignments enable row level security;
 alter table public.tutor_sessions enable row level security;
@@ -165,6 +180,7 @@ create policy "Allow all feedback_reports" on public.feedback_reports for all us
 create policy "Allow all notifications" on public.notifications for all using (true);
 create policy "Allow all modules" on public.modules for all using (true);
 create policy "Allow all enrollments" on public.enrollments for all using (true);
+create policy "Allow all weekly_goals" on public.weekly_goals for all using (true);
 
 -- Storage bucket for assignment files
 insert into storage.buckets (id, name, public) values ('assignments', 'assignments', true);

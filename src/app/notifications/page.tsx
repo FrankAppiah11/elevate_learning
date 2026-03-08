@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { Bell, FileCheck, MessageSquare, Star, Clock } from "lucide-react";
+import { Bell, FileCheck, MessageSquare, Star, Clock, Target } from "lucide-react";
 import Link from "next/link";
 
 interface NotificationItem {
@@ -53,6 +53,7 @@ export default function NotificationsPage() {
       case "submission": return FileCheck;
       case "grade": return Star;
       case "feedback": return MessageSquare;
+      case "goal_reminder": return Target;
       default: return Bell;
     }
   };

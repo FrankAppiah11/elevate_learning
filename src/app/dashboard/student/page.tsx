@@ -21,6 +21,10 @@ import {
   Hash,
   User,
   ExternalLink,
+  Pencil,
+  Target,
+  Check,
+  X,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -59,15 +63,29 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState<DashboardAssignment | null>(null);
 
+  const [goalTarget, setGoalTarget] = useState<number | null>(null);
+  const [goalCurrent, setGoalCurrent] = useState(0);
+  const [hasGoal, setHasGoal] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+
   useEffect(() => {
     async function fetchData() {
       try {
-        const [assignRes, classRes] = await Promise.all([
+        const [assignRes, classRes, goalRes] = await Promise.all([
           fetch("/api/assignments"),
           fetch("/api/classes"),
+          fetch("/api/student/weekly-goal"),
         ]);
         if (assignRes.ok) setAssignments(await assignRes.json());
         if (classRes.ok) setEnrolledClasses(await classRes.json());
+        if (goalRes.ok) {
+          const g = await goalRes.json();
+          setGoalTarget(g.target);
+          setGoalCurrent(g.current);
+          setHasGoal(g.has_goal);
+        }
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
@@ -76,6 +94,28 @@ export default function StudentDashboard() {
     }
     fetchData();
   }, []);
+
+  async function saveGoal() {
+    const num = Number(goalInput);
+    if (!num || num < 1 || num > 50) return;
+    setSavingGoal(true);
+    try {
+      const res = await fetch("/api/student/weekly-goal", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: num }),
+      });
+      if (res.ok) {
+        setGoalTarget(num);
+        setHasGoal(true);
+        setEditingGoal(false);
+      }
+    } catch (err) {
+      console.error("Failed to save goal:", err);
+    } finally {
+      setSavingGoal(false);
+    }
+  }
 
   const completedCount = assignments.filter(
     (a) => a.status === "graded" || a.status === "reviewed"
@@ -93,8 +133,11 @@ export default function StudentDashboard() {
         )
       : null;
 
-  const weeklyGoal = { current: 7, target: 10 };
   const firstName = user?.firstName || "Student";
+  const goalPct =
+    goalTarget && goalTarget > 0
+      ? Math.min(100, Math.round((goalCurrent / goalTarget) * 100))
+      : 0;
 
   function handleAssignmentClick(assignment: DashboardAssignment) {
     if (isReviewable(assignment.status)) {
@@ -178,21 +221,129 @@ export default function StudentDashboard() {
 
         {/* Weekly Goal */}
         <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white">Weekly Study Goal</h3>
-            <Badge variant="success" size="sm">
-              {Math.round((weeklyGoal.current / weeklyGoal.target) * 100)}% Done
-            </Badge>
-          </div>
-          <ProgressBar
-            value={weeklyGoal.current}
-            max={weeklyGoal.target}
-            color="indigo"
-            size="md"
-          />
-          <p className="text-xs text-slate-400 mt-2">
-            {weeklyGoal.target - weeklyGoal.current} assignments to reach your milestone!
-          </p>
+          {!hasGoal && !editingGoal ? (
+            <div className="text-center py-2">
+              <Target className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
+              <h3 className="text-sm font-semibold text-white mb-1">Set Your Weekly Study Goal</h3>
+              <p className="text-xs text-slate-400 mb-4">
+                How many assignments do you want to complete this week?
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                {[3, 5, 7, 10].map((v) => (
+                  <button
+                    key={v}
+                    onClick={async () => {
+                      setGoalInput(String(v));
+                      setSavingGoal(true);
+                      try {
+                        const res = await fetch("/api/student/weekly-goal", {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ target: v }),
+                        });
+                        if (res.ok) {
+                          setGoalTarget(v);
+                          setHasGoal(true);
+                        }
+                      } finally {
+                        setSavingGoal(false);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-indigo-600/30 text-white text-sm font-medium transition-colors border border-slate-600 hover:border-indigo-500"
+                  >
+                    {v}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setEditingGoal(true); setGoalInput(""); }}
+                  className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-indigo-600/30 text-slate-300 text-sm transition-colors border border-slate-600 hover:border-indigo-500"
+                >
+                  Custom
+                </button>
+              </div>
+            </div>
+          ) : editingGoal ? (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-3">
+                {hasGoal ? "Edit Weekly Goal" : "Set Custom Goal"}
+              </h3>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveGoal()}
+                  placeholder="e.g. 5"
+                  autoFocus
+                  className="flex-1 bg-slate-700 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-500"
+                />
+                <button
+                  onClick={saveGoal}
+                  disabled={savingGoal || !goalInput || Number(goalInput) < 1}
+                  className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-colors disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setEditingGoal(false)}
+                  className="p-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Assignments per week (1–50)</p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <Target className="w-4 h-4 text-indigo-400" />
+                  Weekly Study Goal
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={goalPct >= 100 ? "success" : goalPct >= 50 ? "warning" : "default"}
+                    size="sm"
+                  >
+                    {goalPct}% Done
+                  </Badge>
+                  <button
+                    onClick={() => { setEditingGoal(true); setGoalInput(String(goalTarget ?? "")); }}
+                    className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                    title="Edit goal"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <ProgressBar
+                value={goalCurrent}
+                max={goalTarget ?? 1}
+                color={goalPct >= 100 ? "emerald" : "indigo"}
+                size="md"
+              />
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-slate-400">
+                  {goalCurrent >= (goalTarget ?? 0) ? (
+                    <span className="text-emerald-400 font-medium">
+                      Goal reached! Great work this week! 🎉
+                    </span>
+                  ) : (
+                    <>
+                      {(goalTarget ?? 0) - goalCurrent} more assignment
+                      {((goalTarget ?? 0) - goalCurrent) !== 1 ? "s" : ""} to
+                      reach your milestone!
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {goalCurrent}/{goalTarget}
+                </p>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Enrolled Classes */}
